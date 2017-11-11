@@ -52,7 +52,7 @@ module.exports = function container(get, set, clear) {
   }
 
   function retry(method, args, error) {
-    if (error.message.match(/API:Rate limit exceeded/)) {
+    if (error.hasOwnProperty('message') && error.message.match(/API:Rate limit exceeded/)) {
       var timeout = 10000
     } else {
       var timeout = 150
@@ -68,7 +68,17 @@ module.exports = function container(get, set, clear) {
       console.warn(('\nKraken API warning - unable to call ' + method + ' (' + errorMsg + '), retrying in ' + timeout / 1000 + 's').yellow)
     }
     setTimeout(function() {
+      if (so.debug) {
+        console.error(('//--- timeout').red);
+        console.error('method:', method);
+        console.error('args:', args);
+        // console.error('exchange:', exchange);
+        // console.error('exchange:', exchange[method]);
+        console.error(('//--- timeout').red);
+      }
+
       exchange[method].apply(exchange, args)
+      // exchange[method].apply(exchange, args)
     }, timeout)
   }
 
@@ -97,10 +107,14 @@ module.exports = function container(get, set, clear) {
       }
 
       client.api('Trades', args, function(error, data) {
-        if (error && error.message.match(recoverableErrors)) {
-          return retry('getTrades', func_args, error)
-        }
         if (error) {
+          if (error.hasOwnProperty('code') && error.code.match(recoverableErrors)) {
+            return retry('getTrades', func_args, error);
+          }
+
+          if (error.hasOwnProperty('statusCode') && error.statusCode == 520) {
+            return retry('getTrades', func_args, error);
+          }
           console.error(('\nTrades error:').red)
           console.error(error)
           return cb(null, [])
@@ -139,8 +153,12 @@ module.exports = function container(get, set, clear) {
         }
 
         if (error) {
-          if (error.message.match(recoverableErrors)) {
-            return retry('getBalance', args, error)
+          if (error.hasOwnProperty('code') && error.code.match(recoverableErrors)) {
+            return retry('getBalance', args, error);
+          }
+
+          if (error.hasOwnProperty('statusCode') && error.statusCode == 520) {
+            return retry('getBalance', args, error);
           }
           console.error(('\ngetBalance error:').red)
           console.error(error)
@@ -173,8 +191,12 @@ module.exports = function container(get, set, clear) {
         pair: pair
       }, function(error, data) {
         if (error) {
-          if (error.message.match(recoverableErrors)) {
-            return retry('getQuote', args, error)
+          if (error.hasOwnProperty('code') && error.code.match(recoverableErrors)) {
+            return retry('getQuote', args, error);
+          }
+
+          if (error.hasOwnProperty('statusCode') && error.statusCode == 520) {
+            return retry('getQuote', args, error);
           }
           console.error(('\ngetQuote error:').red)
           console.error(error)
@@ -197,8 +219,12 @@ module.exports = function container(get, set, clear) {
         txid: opts.order_id
       }, function(error, data) {
         if (error) {
-          if (error.message.match(recoverableErrors)) {
-            return retry('cancelOrder', args, error)
+          if (error.hasOwnProperty('code') && error.code.match(recoverableErrors)) {
+            return retry('cancelOrder', args, error);
+          }
+
+          if (error.hasOwnProperty('statusCode') && error.statusCode == 520) {
+            return retry('cancelOrder', args, error);
           }
           console.error(('\ncancelOrder error:').red)
           console.error(error)
@@ -236,10 +262,15 @@ module.exports = function container(get, set, clear) {
         console.log(params)
       }
       client.api('AddOrder', params, function(error, data) {
-        if (error && error.message.match(recoverableErrors)) {
-          return retry('trade', args, error)
-        }
+        if (error) {
+          if (error.hasOwnProperty('code') && error.code.match(recoverableErrors)) {
+            return retry('trade', args, error);
+          }
 
+          if (error.hasOwnProperty('statusCode') && error.statusCode == 520) {
+            return retry('trade', args, error);
+          }
+        }
         var order = {
           id: data && data.result ? data.result.txid[0] : null,
           status: 'open',
@@ -263,6 +294,12 @@ module.exports = function container(get, set, clear) {
         }
 
         if (error) {
+          console.error('-- EEE --');
+          console.error(error);
+          console.error(data);
+          console.error(order);
+          console.error('// EE //');
+          return;
           if (error.message.match(/Order:Insufficient funds$/)) {
             order.status = 'rejected'
             order.reject_reason = 'balance'
@@ -304,8 +341,12 @@ module.exports = function container(get, set, clear) {
       }
       client.api('QueryOrders', params, function(error, data) {
         if (error) {
-          if (error.message.match(recoverableErrors)) {
-            return retry('getOrder', args, error)
+          if (error.hasOwnProperty('code') && error.code.match(recoverableErrors)) {
+            return retry('getOrder', args, error);
+          }
+
+          if (error.hasOwnProperty('statusCode') && error.statusCode == 520) {
+            return retry('getOrder', args, error);
           }
           console.error(('\ngetOrder error:').red)
           console.error(error)
@@ -348,5 +389,5 @@ module.exports = function container(get, set, clear) {
       return (trade.time || trade)
     }
   }
-  return exchange
+  return exchange;
 }

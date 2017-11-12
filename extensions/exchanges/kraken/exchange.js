@@ -294,12 +294,6 @@ module.exports = function container(get, set, clear) {
         }
 
         if (error) {
-          console.error('-- EEE --');
-          console.error(error);
-          console.error(data);
-          console.error(order);
-          console.error('// EE //');
-          return;
           if (error.message.match(/Order:Insufficient funds$/)) {
             order.status = 'rejected'
             order.reject_reason = 'balance'
